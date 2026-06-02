@@ -18,7 +18,8 @@ from plotly import express as px
 
 __all__ = [
     "DataInspector", "NumericNormalizeMethod", "CategoricalNormalizeMethod", "Workspace", "Scaler", "AutoTypeCorrector",
-    "ColumnRemover", "DuplicateRemover", "MissingValueHandler", "MissingValueSanitizer", "OutlierHandler", "RowRemover"
+    "ColumnRemover", "DuplicateRemover", "MissingValueHandler", "MissingValueSanitizer", "OutlierHandler", "RowRemover",
+    "StandardizeFormator"
 ]
 
 
@@ -115,6 +116,49 @@ class CategoricalNormalizeMethod(Enum):
 
 
 class DataInspector:
+    """
+    class DataInspector
+
+    Description:
+        Represents a utility class for inspecting and analyzing datasets.
+
+        Provides methods to upload, load, and evaluate datasets from various formats such
+        as CSV, Excel, and JSON. Includes functionalities to determine the environment
+        (local or Google Colab), summarize the dataset structure, data types, missing
+        values, and other essential details for further data processing.
+
+    Attributes:
+        workspace (Workspace): Represents the workspace environment for current
+            operations. Can indicate whether the code is running locally or in
+            Google Colab.
+        file (Path): The path to the dataset file uploaded or selected for analysis.
+            This attribute specifies the file processed by the instance.
+        df (pd.DataFrame): The main pandas DataFrame object used for dataset storage
+            and analysis. All loaded data is represented in this attribute.
+        normalized_numeric_df (pd.DataFrame): Contains normalized numerical
+            columns derived from the primary DataFrame (df). Helps in standardizing
+            numerical data for uniform processing.
+        normalized_categorical_df (pd.DataFrame): Contains preprocessed
+            categorical data from the primary DataFrame (df). This attribute
+            provides a consolidated form of encoded categorical columns.
+        merged_normalized_df (pd.DataFrame): Combines the normalized numerical
+            and categorical DataFrames into a comprehensive form for further
+            analysis or modeling.
+
+    Methods:
+        is_colab: Determines if the current execution environment is Google Colab.
+        upload_data: Prompts the user to upload a data file or specifies a file path
+        load_dataframe: Loads a DataFrame into the instance, either from the provided
+        df_ready: Determines if the dataframe (df) has been loaded and is non-empty.
+        summary: Provides a summary of the dataset with information about its structure, contents, and missing data.
+        pipeline: Configures a sequence of processing steps as a pipeline.
+        preprocess: Preprocesses the data using a pipeline of processing steps, with options for verbosity, error handling, and displaying a summary.
+        extract_normalized_numeric_data: Extract and normalize numeric data columns from a DataFrame based on the specified normalization method.
+        extract_normalized_categorical_data: Extracts and normalizes categorical data from the dataframe based on the specified normalization method.
+        merge_normalized_data: Combines the normalized numerical and categorical DataFrames into a comprehensive form for further analysis or modeling.
+        plot_missing_values: Visualizes missing values in the dataset using Matplotlib.
+    """
+
     workspace: Workspace = NotImplemented
     file: Path = NotImplemented
     df: pd.DataFrame = NotImplemented
@@ -180,7 +224,6 @@ class DataInspector:
                 ))
         else:
             self.file = Path(file_path)
-
 
     def load_dataframe(self, dataframes: pd.DataFrame | None = None) -> None:
         """
@@ -1794,4 +1837,207 @@ class RowRemover(Scaler):
             f"Rows removed   : "
             f"{rows_before - rows_after if rows_before and rows_after else 'N/A'}"
         )
+        print("=" * 60)
+
+
+class Case(Enum):
+    TITLE = "title"
+    LOWER = "lower"
+    UPPER = "upper"
+    NONE = "none"
+
+
+class StandardizeFormator(Scaler):
+    """
+    class StandardizeFormator
+
+    Description:
+        Standardizes and formats column data in a DataFrame.
+
+        Aimed at cleaning and processing textual column data by:
+        - Applying case transformations.
+        - Cleaning numeric strings (e.g., removing commas, dollar signs, etc.).
+        - Applying custom mappings for specific variations.
+        - Handling user-defined or automatically detected string columns.
+
+        Use this class to clean and harmonize text data in DataFrame column headers for
+        further analysis or modeling.
+
+    Methods:
+        fit: Fits the model to the provided data.
+        transform: Transforms the input DataFrame by applying specified text processing rules.
+        verbose: Provides detailed information about the text processing process.
+
+    :ivar columns: List of columns to process. If not provided, columns with 'object' type
+        are automatically processed.
+    :type columns: list[str]
+    :ivar cases: Enumeration of case transformations (e.g., LOWER, UPPER, TITLE).
+    :type cases: Case
+    :ivar case: Desired case transformation to apply to column data.
+    :type case: Case
+    :ivar custom_mappings: Dictionary of custom transformation mappings for specified columns
+        where key is the column name and value is the mapping dictionary.
+    :type custom_mappings: dict[str, dict]
+    :ivar clean_numeric_strings: Flag to indicate whether numeric strings require formatting
+        (e.g., removing commas, dollar signs, etc.).
+    :type clean_numeric_strings: bool
+    """
+
+    _last_stat: dict[str, str | list[str]] = {}
+    columns: list[str] = NotImplemented
+    cases = Case
+    case: Case = NotImplemented
+    custom_mappings: dict[str, dict] = NotImplemented
+    clean_numeric_strings: bool = NotImplemented
+
+    def __init__(
+            self, columns: list[str] | None = None, case: Case = Case.TITLE,
+            custom_mappings: dict[str, dict] | None = None, clean_numeric_strings: bool = True
+    ):
+        """
+        Initializes the instance of the class with configuration for column names
+        processing, case transformation, custom mappings, and numeric string
+        cleaning.
+
+        :param columns: List of column names to process. If `None`, all columns
+            will be processed.
+        :type columns: list[str] | None
+        :param case: Case transformation to be applied to column names. This can
+            be `Case.TITLE`, `Case.UPPER`, or `Case.LOWER`.
+        :type case: Case
+        :param custom_mappings: Custom mappings to apply to column names. This
+            should be a dictionary where keys are column names and values are
+            dictionaries containing mappings for transformations.
+        :type custom_mappings: dict[str, dict] | None
+        :param clean_numeric_strings: Indicates whether numeric strings should be
+            cleaned (e.g., removing extra spaces or formatting artifacts).
+        :type clean_numeric_strings: bool
+        :raises ValueError: If the provided `case` is invalid.
+        :raises ValueError: If the `clean_numeric_strings` parameter is not a
+            boolean value.
+        """
+        self.columns = columns
+        self.case = case
+        self.custom_mappings = custom_mappings
+        self.clean_numeric_strings = clean_numeric_strings
+
+        if self.custom_mappings is None:
+            self.custom_mappings = {}
+        if self.case not in self.cases:
+            raise ValueError(f"Invalid case: {self.case}")
+        if self.clean_numeric_strings not in (True, False):
+            raise ValueError(f"Invalid clean_numeric_strings: {self.clean_numeric_strings}")
+
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> Self:
+        """
+        Fits the model to the provided data.
+
+        This method is responsible for training or adjusting the model parameters based
+        on the input features and optional target values. It modifies the internal state
+        of the model object as a result of the fitting process.
+
+        :param X: Input features as a pandas DataFrame, where rows represent samples and
+                  columns represent features.
+        :param y: Optional target values as a pandas Series. If provided, it contains
+                  the labels or outcomes corresponding to each row in X. If not
+                  specified, the model may perform unsupervised learning or other tasks
+                  that do not require targets.
+        :return: The instance of the fitted model.
+        """
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transforms the input DataFrame based on the specified text processing rules.
+
+        This method processes specified columns of the input DataFrame by performing operations
+        such as trimming, case formatting, cleaning numeric strings, and applying custom mappings.
+        If no columns are specified, it determines columns of type 'object' automatically to process.
+
+        :param X: The input DataFrame to be transformed.
+        :type X: pd.DataFrame
+        :return: The transformed DataFrame after applying the text processing rules.
+        :rtype: pd.DataFrame
+        """
+
+        df = X.copy()
+
+        if self.columns in (None, NotImplemented):
+            self.columns = (
+                df.select_dtypes(include=["object", "str"])
+                .columns
+                .tolist()
+            )
+
+        processed_columns = []
+
+        for col in self.columns:
+            if col not in df.columns:
+                print(f"Column {col} not found in the DataFrame, Skipping.")
+                continue
+
+            if df[col].dtype == "object":
+                df[col] = df[col].astype(str).str.strip()
+            if df[col].dtype == "str" or df[col].dtype == "object":
+                if self.case == self.cases.LOWER:
+                    df[col] = df[col].str.lower()
+                elif self.case == self.cases.UPPER:
+                    df[col] = df[col].str.upper()
+                elif self.case == self.cases.TITLE:
+                    df[col] = df[col].str.title()
+                elif self.case == self.cases.NONE:
+                    pass
+                else:
+                    raise ValueError("case must be of type Case or one of its values.")
+
+                if self.clean_numeric_strings:
+                    df[col] = (
+                        df[col]
+                        .str.replace(",", "", regex=False)
+                        .str.replace("$", "", regex=False)
+                        .str.replace("%", "", regex=False)
+                    )
+                if col in self.custom_mappings:
+                    mapping = {
+                        str(k).strip().lower(): v
+                        for k, v in self.custom_mappings[col].items()
+                    }
+                    df[col] = df[col].apply(
+                        lambda x:
+                        mapping.get(
+                            str(x).lower(),
+                            x
+                        )
+                        if pd.notna(x)
+                        else x
+                    )
+                processed_columns.append(col)
+
+        X = df
+
+        self._last_stat = {
+            "processed_columns": processed_columns,
+            "case": self.case.name
+        }
+
+        return X
+
+    def verbose(self):
+        """
+        Displays a detailed summary of the format standardization process. This
+        function provides statistical and configuration details about the processed
+        columns and the applied case formatting.
+
+        :return: None
+        :rtype: None
+        """
+        print("=" * 60)
+        print("FORMAT STANDARDIZATION COMPLETED")
+        print("=" * 60)
+        print(
+            f"Columns processed : "
+            f"{len(self._last_stat.get('processed_columns', []))}"
+        )
+        print(self._last_stat.get("processed_columns", []))
+        print(f"Case format      : {self._last_stat.get('case', 'N/A')}")
         print("=" * 60)
