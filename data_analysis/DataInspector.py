@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import display
 from pandas import DataFrame
-from pygments.lexers import go
+import plotly.graph_objects as go
 from scipy.stats import chi2_contingency
 from sklearn.preprocessing import (
     MinMaxScaler, StandardScaler, RobustScaler
