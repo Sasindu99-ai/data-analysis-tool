@@ -1,3 +1,5 @@
+import inspect
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -9,6 +11,32 @@ __all__ = ["PlottingMethods"]
 
 
 class PlottingMethods:
+    """
+    class PlottingMethods
+
+    Description:
+        Provides methods for data exploration and visualization on a given pandas DataFrame.
+
+        This class contains methods for inspecting, validating, and visualizing the data
+        in a pandas DataFrame. It includes features such as data readiness checks,
+        univariate visualization of numeric columns, visualization of relationships
+        between columns, and frequency distribution of categorical columns.
+
+    Attributes:
+        df (pd.DataFrame): The pandas DataFrame used for analysis and visualization.
+
+    Methods:
+        get_methods_info: Retrieves information about public methods of the current instance.
+        df_ready: Determines if the dataframe (df) has been loaded and is non-empty.
+        plot_numeric_univariate: Generates a series of univariate visualizations for numeric columns.
+        plot_relationship: Plots a visual representation of the relationship between two columns.
+        plot_categorical_frequency: Generates a bar chart visualizing the frequency distribution of a categorical column.
+        plot_all_associations_heatmap: Generates a heatmap visualizing the associations between all numerical and categorical columns.
+        bar_chart: Generates an HTML representation of a bar chart visualizing the frequency of values in a column.
+        pie_chart: Generate an HTML representation of a pie chart using Plotly based on the distribution of values in a column.
+        histogram: Generates a histogram plot of a numeric column.
+    """
+
     df: pd.DataFrame = NotImplemented
 
     def __init__(self, df: pd.DataFrame):
@@ -19,6 +47,35 @@ class PlottingMethods:
         :type df: pd.DataFrame
         """
         self.df = df
+
+    def get_methods_info(self):
+        """
+        Retrieves information about public methods of the current instance.
+
+        Compiles a list of dictionaries containing details of the public methods
+        implemented in the class instance. Each dictionary in the list includes
+        the method name, its signature, and its docstring. Private, protected,
+        and internal methods (those with names starting with an underscore) are excluded.
+
+        Returns:
+            list[dict]: A list of dictionaries where each dictionary represents
+            a method with the following keys:
+                - method (str): The name of the method.
+                - signature (str): The signature of the method.
+                - description (str): The docstring or "No description available" if no
+                  docstring exists.
+        """
+        method_dicts = []
+        methods = inspect.getmembers(self, inspect.ismethod)
+
+        for name, method in methods:
+            if name.startswith('_'):
+                continue
+            signature = inspect.signature(method)
+            docstring = method.__doc__
+            formatted_docstring = docstring.strip() if docstring else "No description available"
+            method_dicts += [{"method": name, "signature": str(signature), "description": formatted_docstring}]
+        return method_dicts
 
     def df_ready(self) -> bool:
         """

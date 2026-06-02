@@ -1,3 +1,4 @@
+import inspect
 import traceback
 from abc import abstractmethod, ABC
 from enum import Enum
@@ -19,8 +20,21 @@ from plotly import express as px
 __all__ = [
     "DataInspector", "NumericNormalizeMethod", "CategoricalNormalizeMethod", "Workspace", "Scaler", "AutoTypeCorrector",
     "ColumnRemover", "DuplicateRemover", "MissingValueHandler", "MissingValueSanitizer", "OutlierHandler", "RowRemover",
-    "StandardizeFormator"
+    "StandardizeFormator", "get_class_info"
 ]
+
+
+def get_class_info(classes: list[type]):
+    class_dicts = []
+    for cls in classes:
+        if cls.__name__ == "Scaler":
+            continue
+        signature = inspect.signature(cls)
+        docstring = cls.__doc__
+        formatted_docstring = docstring.strip() if docstring else "No description available"
+        class_dicts += [{"class": cls.__name__, "signature": str(signature), "description": formatted_docstring}]
+    return class_dicts
+
 
 
 class Scaler(ABC):
@@ -157,6 +171,7 @@ class DataInspector:
         extract_normalized_categorical_data: Extracts and normalizes categorical data from the dataframe based on the specified normalization method.
         merge_normalized_data: Combines the normalized numerical and categorical DataFrames into a comprehensive form for further analysis or modeling.
         plot_missing_values: Visualizes missing values in the dataset using Matplotlib.
+        get_methods_info: Retrieves and organizes information about all public methods of the current class instance.
     """
 
     workspace: Workspace = NotImplemented
@@ -176,6 +191,34 @@ class DataInspector:
         :type workspace: Workspace
         """
         self.workspace = workspace
+
+    def get_methods_info(self) -> list[dict[str, str]]:
+        """
+        Retrieves and organizes information about all public methods of the current class instance.
+
+        The method collects the name, signature, and description (docstring) of each public method
+        defined in the class instance. Private or protected methods, identified by their leading
+        underscore prefix, are excluded from the results. This function uses the `inspect` module
+        to identify and process the methods and their associated metadata.
+
+        Returns:
+            list[dict[str, str]]: A list of dictionaries, where each dictionary contains the following keys:
+                - 'method': The name of the method.
+                - 'signature': The method's signature, as a string.
+                - 'description': The method's docstring if present; otherwise, a default message stating
+                  "No description available".
+        """
+        method_dicts=[]
+        methods = inspect.getmembers(self, inspect.ismethod)
+
+        for name, method in methods:
+            if name.startswith('_'):
+                continue
+            signature = inspect.signature(method)
+            docstring = method.__doc__
+            formatted_docstring = docstring.strip() if docstring else "No description available"
+            method_dicts+= [{"method": name, "signature":str(signature), "description": formatted_docstring}]
+        return method_dicts
 
     def is_colab(self) -> bool:
         """
