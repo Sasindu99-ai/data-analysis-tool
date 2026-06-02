@@ -48,8 +48,7 @@ class PlottingMethods:
         """
         self.df = df
 
-    @classmethod
-    def get_methods_info(cls):
+    def get_methods_info(self):
         """
         Retrieves information about public methods of the current instance.
 
@@ -67,7 +66,7 @@ class PlottingMethods:
                   docstring exists.
         """
         method_dicts = []
-        methods = inspect.getmembers(cls, inspect.ismethod)
+        methods = inspect.getmembers(self, inspect.ismethod)
 
         for name, method in methods:
             if name.startswith('_'):
