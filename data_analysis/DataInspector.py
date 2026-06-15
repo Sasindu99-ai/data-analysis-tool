@@ -797,7 +797,15 @@ class DataInspector:
                     if is_num1 and is_num2:
                         x = valid_data[col1]
                         y = valid_data[col2]
-                        val = abs(x.corr(y, method="pearson")) if x.nunique() <= 1 or y.nunique() <= 1 else 0.0
+                        if x.nunique() <= 1 or y.nunique() <= 1:
+                            val = 0.0
+                        else:
+                            val = abs(
+                                x.corr(
+                                    y,
+                                    method="pearson"
+                                )
+                            )
                     elif not is_num1 and not is_num2:
                         confusion_matrix = pd.crosstab(valid_data[col1], valid_data[col2])
 
